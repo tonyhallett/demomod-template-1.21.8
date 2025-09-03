@@ -1,0 +1,23 @@
+{
+  "variants": {
+    "facing=down": {
+      "model": "demomod:block/hopper_pipe"
+    },
+
+    "facing=east": {
+      "model": "demomod:block/hopper_pipe_side",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "demomod:block/hopper_pipe_side"
+    },
+    "facing=south": {
+      "model": "demomod:block/hopper_pipe_side",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "demomod:block/hopper_pipe_side",
+      "y": 270
+    }
+  }
+}
