@@ -1,4 +1,6 @@
 {
   "container.demomod.hopper_pipe" : "Item Hopper Pipe",
-  "item.demomod.hopper_pipe": "Hopper Pipe"
+  "item.demomod.hopper_pipe": "Hopper Pipe",
+  "item.demomod.minecart_killer":"Minecart Collider Killer",
+  "block.demomod.minecart_killer": "Minecart Collider Killer"
 }

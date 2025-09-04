@@ -23,14 +23,6 @@ public class Demomod implements ModInitializer {
 		// Proceed with mild caution.
 
 		LOGGER.info("Hello Fabric world!");
-        Path outputPath = Path.of("C:\\Users\\tonyh\\Downloads\\hopper_structures.txt");
-        Path structurePath = Path.of("C:\\Users\\tonyh\\Downloads\\1.21.8\\data\\minecraft\\structure");
-        try {
-            HopperStructureInfo.writeHopperStructureInfo(structurePath, outputPath);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
         ModBlocks.initialize();
         ModBlockEntities.initialize();
 

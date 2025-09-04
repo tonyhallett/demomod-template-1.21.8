@@ -68,6 +68,8 @@ public class ModBlocks {
     public static void initialize() {
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.REDSTONE).register((itemGroup) -> {
             itemGroup.add(HOPPER_PIPE_BLOCK.asItem());
+        });
+        ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register((itemGroup) -> {
             itemGroup.add(MINECART_COLLISION_KILLER_BLOCK.asItem());
         });
     }
