@@ -7,7 +7,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCollisionHandler;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.damage.DamageType;
-import net.minecraft.entity.vehicle.MinecartEntity;
+import net.minecraft.entity.vehicle.AbstractMinecartEntity;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.world.ServerWorld;
@@ -35,7 +35,7 @@ public class MinecartCollisionKillerBlock extends Block {
 
     @Override
     protected void onEntityCollision(BlockState state, World world, BlockPos pos, Entity entity, EntityCollisionHandler handler) {
-        if (entity instanceof MinecartEntity && world instanceof ServerWorld serverWorld){
+        if (entity instanceof AbstractMinecartEntity && world instanceof ServerWorld serverWorld){
             var damageSource = new DamageSource(
                     world.getRegistryManager()
                             .getOrThrow(RegistryKeys.DAMAGE_TYPE)
