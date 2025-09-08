@@ -1,0 +1,7 @@
+{
+  "parent": "block/cube_all",
+  "textures": {
+    "all": "demomod:item/minecart_killer",
+    "particle": "demomod:item/minecart_killer"
+  }
+}

@@ -2,8 +2,13 @@ package tonyhallett.demomod;
 
 import net.fabricmc.api.ModInitializer;
 
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.minecraft.server.world.ServerWorld;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.nio.file.Path;
 
 public class Demomod implements ModInitializer {
 	public static final String MOD_ID = "demomod";
@@ -22,5 +27,16 @@ public class Demomod implements ModInitializer {
 		LOGGER.info("Hello Fabric world!");
         ModBlocks.initialize();
         ModBlockEntities.initialize();
+        DemoNbt();
 	}
+
+    private void DemoNbt(){
+        var structurePath = Path.of("C:\\Users\\tonyh\\Downloads\\1.21.8\\data\\minecraft\\structure\\trial_chambers");
+        var outputPath  = Path.of("C:\\Users\\tonyh\\Downloads\\structureInfo.text");
+        try {
+            HopperStructureInfo.writeHopperStructureInfo(structurePath, outputPath);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

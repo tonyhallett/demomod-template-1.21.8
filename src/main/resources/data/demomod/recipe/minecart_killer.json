@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "minecraft:cactus"
+  ],
+  "result": {
+    "id": "demomod:minecart_killer",
+    "count": 1
+  }
+}
