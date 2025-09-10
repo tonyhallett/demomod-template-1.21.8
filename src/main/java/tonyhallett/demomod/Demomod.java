@@ -24,10 +24,8 @@ public class Demomod implements ModInitializer {
 		// However, some things (like resources) may still be uninitialized.
 		// Proceed with mild caution.
 
-		LOGGER.info("Hello Fabric world!");
         ModBlocks.initialize();
         ModBlockEntities.initialize();
-        DemoNbt();
 	}
 
     private void DemoNbt(){
