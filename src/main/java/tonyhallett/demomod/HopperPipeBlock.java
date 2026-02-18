@@ -23,6 +23,6 @@ public class HopperPipeBlock extends HopperBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-        return world.isClient ? null : validateTicker(type, ModBlockEntities.HOPPER_PIPE_BLOCK_ENTITY, HopperBlockEntity::serverTick);
+        return world.isClient() ? null : validateTicker(type, ModBlockEntities.HOPPER_PIPE_BLOCK_ENTITY, HopperBlockEntity::serverTick);
     }
 }
