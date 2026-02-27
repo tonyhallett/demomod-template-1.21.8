@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "mod-test",
+  "version": "1.0.0",
+  "name": "Mod tests",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-gametest": ["tonyhallett.demomod.ServerGameTest"],
+    "fabric-client-gametest": ["tonyhallett.demomod.GameTest"]
+  }
+}

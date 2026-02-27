@@ -34,12 +34,12 @@ public class MinecartCollisionKillerBlock extends Block {
     );
 
     @Override
-    protected void onEntityCollision(BlockState state, World world, BlockPos pos, Entity entity, EntityCollisionHandler handler) {
+    protected void onEntityCollision(BlockState state, World world, BlockPos pos, Entity entity, EntityCollisionHandler handler, boolean bool) {
         if (entity instanceof AbstractMinecartEntity && world instanceof ServerWorld serverWorld){
             var damageSource = new DamageSource(
                     world.getRegistryManager()
                             .getOrThrow(RegistryKeys.DAMAGE_TYPE)
-                            .getEntry(damageType.getValue()).get()
+                            .getEntry(damageType.getValue()).orElseThrow()
             );
 
             entity.damage(serverWorld, damageSource, 10F);

@@ -1,0 +1,7 @@
+{
+	"type": "minecraft:block_based",
+	"environment": "minecraft:default",
+	"structure": "demomod:minecart_killer_test",
+	"max_ticks": 20,
+	"setup_ticks": 1
+}

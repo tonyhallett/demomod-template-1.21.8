@@ -20,6 +20,7 @@ public class HopperBlockEntityMixin {
     private static void onExtract(World world, Hopper hopper, CallbackInfoReturnable<Boolean> cir) {
         if (hopper instanceof HopperPipeBlockEntity) {
             cir.setReturnValue(false); // prevent normal extract
+            cir.cancel();
         }
     }
 }

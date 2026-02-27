@@ -2,13 +2,8 @@ package tonyhallett.demomod;
 
 import net.fabricmc.api.ModInitializer;
 
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
-import net.minecraft.server.world.ServerWorld;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.nio.file.Path;
 
 public class Demomod implements ModInitializer {
 	public static final String MOD_ID = "demomod";
@@ -16,6 +11,7 @@ public class Demomod implements ModInitializer {
 	// This logger is used to write text to the console and the log file.
 	// It is considered best practice to use your mod id as the logger's name.
 	// That way, it's clear which mod wrote info, warnings, and errors.
+	@SuppressWarnings({"unused"})
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
 	@Override
@@ -23,18 +19,7 @@ public class Demomod implements ModInitializer {
 		// This code runs as soon as Minecraft is in a mod-load-ready state.
 		// However, some things (like resources) may still be uninitialized.
 		// Proceed with mild caution.
-
         ModBlocks.initialize();
         ModBlockEntities.initialize();
 	}
-
-    private void DemoNbt(){
-        var structurePath = Path.of("C:\\Users\\tonyh\\Downloads\\1.21.8\\data\\minecraft\\structure\\trial_chambers");
-        var outputPath  = Path.of("C:\\Users\\tonyh\\Downloads\\structureInfo.text");
-        try {
-            HopperStructureInfo.writeHopperStructureInfo(structurePath, outputPath);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
 }
