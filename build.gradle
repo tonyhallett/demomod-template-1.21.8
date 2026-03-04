@@ -93,7 +93,7 @@ fabricApi {
 	configureTests {
 		createSourceSet = true
 		modId = "mod-test"
-		enableGameTests = false
+		enableGameTests = true
 		enableClientGameTests = true
 		eula = true // By setting this to true, you agree to the Minecraft EULA.
 	}

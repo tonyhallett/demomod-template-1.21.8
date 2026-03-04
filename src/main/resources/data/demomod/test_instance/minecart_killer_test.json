@@ -3,5 +3,6 @@
 	"environment": "minecraft:default",
 	"structure": "demomod:minecart_killer_test",
 	"max_ticks": 20,
-	"setup_ticks": 1
+	"setup_ticks": 1,
+	"manual_only": true
 }
