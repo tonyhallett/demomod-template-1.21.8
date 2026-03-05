@@ -24,8 +24,6 @@ public class TestStructureBlockFinder
             }
         });
 
-
         return results;
     }
-
 }

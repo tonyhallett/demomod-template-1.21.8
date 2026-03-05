@@ -23,8 +23,6 @@ public class ServerHopperPipeTest implements CustomTestMethodInvoker {
         method.invoke(this, context);
     }
 
-
-
     @SuppressWarnings({"unused"})
     @GameTest(maxTicks = 30)
     public void hopperPipeNoCollisionTest(TestContext context){
@@ -80,10 +78,7 @@ public class ServerHopperPipeTest implements CustomTestMethodInvoker {
                 context.expectContainerWithSingle(hopperPos,Items.MINECART);
             }
         };
-
     }
-
-
 }
 
 class HopperCreator
