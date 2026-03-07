@@ -32,9 +32,9 @@ If you are not using a structure then the `TestContext` has methods for adding b
 Structures need to be provided as files in the [NBT format](https://minecraft.wiki/w/NBT_format) normally but the StructureTemplateManagerMixin allows for SNBT string format.
 If you use SNBT then the resources data directory structure is different.  
 
-| Nbt | Path |
-| --  | -- |
-| true | resources/data/*namespace*/structure/*structurename*.nbt |
+| Nbt   | Path                                                              |
+|-------|-------------------------------------------------------------------|
+| true  | resources/data/*namespace*/structure/*structurename*.nbt          |
 | false | resources/data/*namespace*/gametest/structure/*structurename*.nbt |
 
 It does not matter which resources directory is used for game tests.
@@ -393,7 +393,7 @@ expectations can be for the provided argument at the position
 Presence - `public void expectBlock(Block block, BlockPos pos)`
 State - `expectBlockState(BlockPos pos, BlockState state)`
 Property ( a specific property in the block state)
-e.g Properties class POWERED boolean property.  ( There are Integer and Enum properties also )
+e.g. Properties class POWERED boolean property.  ( There are Integer and Enum properties also )
 `public <T extends Comparable<T>> void expectBlockProperty(BlockPos pos, Property<T> property, T value) (block state )`
 
 Then there are predicate "check" methods where you are provided the Block, BlockState or Property ?
@@ -467,11 +467,6 @@ For conversion there is
 for the test box itself
 `getTestBox`
 `getRotation` and `getDirection` is for how the test structure has been adjusted for the test.
-
-
-## Initial conditions
-
-todo Discuss the json and @GameTest
 
 
 ## Running tests
@@ -688,12 +683,12 @@ final class TestAnnotationLocator {
 }
 
 ```
-The testFunction will be what is invoked by FunctionTestInstance.start
-This will invoke the annotated method's containing class CustomTestMethodInvoker.invokeTestMethod if it extends the interface
-or just invoke the test method.  Both methods receive the TestContext.
+The `testFunction` will be what is invoked by `FunctionTestInstance start`
+This will invoke the annotated method's containing class `CustomTestMethodInvoker invokeTestMethod` if it extends the interface
+or just invoke the test method.  Both methods receive the `TestContext`.
 
-The testInstance creates the associated FunctionTestInstance with the necessary TestData that the
-test infrastructure requires - all taken from the @GameTest annotation.  ( With the test environment from the registry)
+The `testInstance` method creates the associated `FunctionTestInstance` with the necessary TestData that the
+test infrastructure requires - all taken from the `@GameTest` annotation.  ( With the test environment from the registry)
 ```java
 	public record TestMethod(Method method, GameTest gameTest, EntrypointContainer<Object> entrypoint) {
 		Identifier identifier() {
@@ -835,7 +830,7 @@ public @interface GameTest {
 }
 ```
 
-This is how the json files in data / *namespacename* / test_environment
+This is how the JSON files in data / *namespacename* / test_environment
 get associated with code that runs setup and teardown, with access to the ServerWorld.
 If these are not sufficient you could define your own [codec](https://wiki.fabricmc.net/tutorial:codec).
 
