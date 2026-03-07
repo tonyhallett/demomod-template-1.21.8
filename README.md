@@ -7,11 +7,12 @@ Find all references
 Go to definition / Peek definition
 View inheritance hierarchy
 
-[Vscode nby viewer extension](https://marketplace.visualstudio.com/items?itemName=Misodee.vscode-nbt&ssr=false#review-details) - not looked at yet.
+[Fabric dev documentation](https://docs.fabricmc.net/develop/)
+[Fabric modding - detailed](https://wiki.fabricmc.net/tutorial:start)
 
 # Testing
 
-To perform testing you can test in game with block based testing or you can test in code.
+You can test in game with block based testing, or you can test in code.
 
 Block testing and function testing ( code ) are built into the game.
 Function based ( server, no UI ) testing is hooked into by Fabric.
@@ -28,8 +29,26 @@ If you are not using a structure then the `TestContext` has methods for adding b
 
 ## Creating a structure
 
-Structures are nbt files ( snbt too) - add link
-and although it is possible to create the file manually it is simpler to create in game.
+Structures need to be provided as files in the [NBT format](https://minecraft.wiki/w/NBT_format) normally but the StructureTemplateManagerMixin allows for SNBT string format.
+If you use SNBT then the resources data directory structure is different.  
+
+| Nbt | Path |
+| --  | -- |
+| true | resources/data/*namespace*/structure/*structurename*.nbt |
+| false | resources/data/*namespace*/gametest/structure/*structurename*.nbt |
+
+It does not matter which resources directory is used for game tests.
+If you want your block based tests to be published then they need to go in main as gametest is not published.
+Do not use SNBT for published block based tests as the fabric gametest api is not including in the fabric api jar.
+
+Structure files have a specific [format](https://minecraft.wiki/w/Structure_file#NBT_structure).
+
+I used the [Vscode nbt viewer extension](https://marketplace.visualstudio.com/items?itemName=Misodee.vscode-nbt&ssr=false#review-details) to obtain a structure as SNBT.
+
+You can see the parsing of the nbt by following the code of the StructureTemplateManager.readTemplate.
+The StructureTemplateManagerMixin converts to nbt with `NbtHelper.fromNbtProviderString(String string)`
+
+Although it is possible to create the file manually it is simpler to create in game.
 
 There are two methods of creating in game:
 
@@ -37,6 +56,8 @@ There are two methods of creating in game:
 2. Using the command /test create *testname*
 
 Option 2 is probably the better option, **it does have caveats though**.
+
+
 
 ### Creating blocks and entities in code
 
@@ -475,6 +496,384 @@ By having all 3 understanding is gained on the processes and quirks involved.
 
 ## Code tests
 
-# The internal code
+# How the fabric game tests work
+
+If you look in build / loom-cache / remapped_working there will be a jar containing "fabric-gametest-api".
+
+If you view inside ( change jar to zip ).
+
+fabric.mod.json has entry point for main - net.fabricmc.fabric.impl.gametest.FabricGameTestModInitializer
+
+fabric-gametest-api-v1.mixins.json has 3 mixins
+
+RegistryLoaderMixin
+TestServerMixin - simple ensures isDedicated returns true
+StructureTemplateManagerMixin - already described, facilitates SNBT.
+
+The RegistryLoaderMixin is simple as it just hooks in to when test instances are required so that 
+`FabricGameTestModInitializer.registerDynamicEntries(registriesList);` can register test instances.
+
+So the main logic is inside FabricGameTestModInitializer.  Showing relevant code
+
+The `TestAnnotationLocator` is key to registering 
+test functions - Consumer<TestContext>
+test instance 
+
+```
+public abstract class TestInstance {
+	protected TestInstance(TestData<RegistryEntry<TestEnvironmentDefinition>> data) {
+		this.data = data;
+	}
+
+	public abstract void start(TestContext context);
+}
+```
+
+
+```java
+public final class FabricGameTestModInitializer implements ModInitializer {
+	private static final Logger LOGGER = LoggerFactory.getLogger(FabricGameTestModInitializer.class);
+	private static TestAnnotationLocator locator = new TestAnnotationLocator(FabricLoader.getInstance());
+
+	@Override
+	public void onInitialize() {
+		if (!(FabricGameTestRunner.ENABLED || FabricLoader.getInstance().isDevelopmentEnvironment())) {
+			// Don't try to load the tests if the game test runner is disabled or we are not in a development environment
+			return;
+		}
+
+		for (TestAnnotationLocator.TestMethod testMethod : locator.getTestMethods()) {
+			LOGGER.debug("Registering test method: {}", testMethod.identifier());
+			Registry.register(Registries.TEST_FUNCTION, testMethod.identifier(), testMethod.testFunction());
+		}
+	}
+
+	public static void registerDynamicEntries(List<RegistryLoader.Loader<?>> registriesList) {
+		// Registry<TestInstance> testInstances ....
+		// Registry<TestEnvironmentDefinition> testEnvironmentDefinitionRegistry
+
+		for (TestAnnotationLocator.TestMethod testMethod : locator.getTestMethods()) {
+			TestInstance testInstance = testMethod.testInstance(testEnvironmentDefinitionRegistry);
+			Registry.register(testInstances, testMethod.identifier(), testInstance);
+		}
+	}
+}
+
+```
+
+There are two TestInstance derivations, BlockBasedTestInstance and Fabric's FunctionTestInstance
+
+FunctionTestInstance start is simple in that it invokes the corresponding function that was registered in onInitialize
+```
+	public FunctionTestInstance(RegistryKey<Consumer<TestContext>> function, TestData<RegistryEntry<TestEnvironmentDefinition>> data) {
+		super(data);
+		this.function = function;
+	}
+
+	@Override
+	public void start(TestContext context) {
+		((Consumer)context.getWorld()
+				.getRegistryManager()
+				.getOptionalEntry(this.function)
+				.map(RegistryEntry.Reference::value)
+				.orElseThrow(() -> new IllegalStateException("Trying to access missing test function: " + this.function.getValue())))
+			.accept(context);
+	}
+```
+
+# TestAnnotationLocator.getTestMethods
+
+my gametest / resources / fabric.mod.json - note the entry points
+```json
+{
+"schemaVersion": 1,
+"id": "mod-test",
+"version": "1.0.0",
+"name": "Mod tests",
+"environment": "*",
+"entrypoints": {
+  "fabric-gametest": ["tonyhallett.demomod.ServerMinecartKillerTest", "tonyhallett.demomod.ServerHopperPipeTest"],
+  "fabric-client-gametest": ["tonyhallett.demomod.GameTest"]
+}
+}
+```
+The logic is simple so probably no need to look at the code
+1. For those participating - fabric.mod.json fabric-gametest entry point
+2. Use reflection to find methods with the `@GameTest` annotation ( will check super)
+3. Create a TestMethod for each
+
+```java
+
+final class TestAnnotationLocator {
+	private static final String ENTRYPOINT_KEY = "fabric-gametest";
+	private static final Logger LOGGER = LoggerFactory.getLogger(TestAnnotationLocator.class);
+
+	private final FabricLoader fabricLoader;
+
+	private List<TestMethod> testMethods = null;
+
+	TestAnnotationLocator(FabricLoader fabricLoader) {
+		this.fabricLoader = fabricLoader;
+	}
+
+	public List<TestMethod> getTestMethods() {
+		if (testMethods != null) {
+			return testMethods;
+		}
+
+		List<EntrypointContainer<Object>> entrypointContainers = fabricLoader
+				.getEntrypointContainers(ENTRYPOINT_KEY, Object.class);
+
+		return testMethods = entrypointContainers.stream()
+				.flatMap(entrypoint -> findMagicMethods(entrypoint).stream())
+				.toList();
+	}
+
+	private List<TestMethod> findMagicMethods(EntrypointContainer<Object> entrypoint) {
+		Class<?> testClass = entrypoint.getEntrypoint().getClass();
+		List<TestMethod> methods = new ArrayList<>();
+		findMagicMethods(entrypoint, testClass, methods);
+
+		if (methods.isEmpty()) {
+			LOGGER.warn("No methods with the GameTest annotation were found in {}", testClass.getName());
+		}
+
+		return methods;
+	}
+
+	// Recursively find all methods with the GameTest annotation
+	private void findMagicMethods(EntrypointContainer<Object> entrypoint, Class<?> testClass, List<TestMethod> methods) {
+		for (Method method : testClass.getDeclaredMethods()) {
+			if (method.isAnnotationPresent(GameTest.class)) {
+				if (!CustomTestMethodInvoker.class.isAssignableFrom(testClass)) {
+					// Only validate the test method when using the default reflection invoker
+					validateMethod(method);
+				}
+
+				methods.add(new TestMethod(method, method.getAnnotation(GameTest.class), entrypoint));
+			}
+		}
+
+		if (testClass.getSuperclass() != null) {
+			findMagicMethods(entrypoint, testClass.getSuperclass(), methods);
+		}
+	}
+
+	private void validateMethod(Method method) {
+		List<String> issues = new ArrayList<>();
+
+		if (method.getParameterCount() != 1 || method.getParameterTypes()[0] != TestContext.class) {
+			issues.add("must have a single parameter of type TestContext");
+		}
+
+		if (!Modifier.isPublic(method.getModifiers())) {
+			issues.add("must be public");
+		}
+
+		if (Modifier.isStatic(method.getModifiers())) {
+			issues.add("must not be static");
+		}
+
+		if (method.getReturnType() != void.class) {
+			issues.add("must return void");
+		}
+
+		if (issues.isEmpty()) {
+			return;
+		}
+
+		String methodName = method.getDeclaringClass().getName() + "#" + method.getName();
+		throw new UnsupportedOperationException("Test method (%s) has the following issues: %s".formatted(methodName, String.join(", ", issues)));
+	}
+}
+
+```
+The testFunction will be what is invoked by FunctionTestInstance.start
+This will invoke the annotated method's containing class CustomTestMethodInvoker.invokeTestMethod if it extends the interface
+or just invoke the test method.  Both methods receive the TestContext.
+
+The testInstance creates the associated FunctionTestInstance with the necessary TestData that the
+test infrastructure requires - all taken from the @GameTest annotation.  ( With the test environment from the registry)
+```java
+	public record TestMethod(Method method, GameTest gameTest, EntrypointContainer<Object> entrypoint) {
+		Identifier identifier() {
+			String name = camelToSnake(entrypoint.getEntrypoint().getClass().getSimpleName() + "_" + method.getName());
+			return Identifier.of(entrypoint.getProvider().getMetadata().getId(), name);
+		}
+
+		Consumer<TestContext> testFunction() {
+			return context -> {
+				Object instance = entrypoint.getEntrypoint();
+
+				try {
+					if (instance instanceof CustomTestMethodInvoker customTestMethodInvoker) {
+						customTestMethodInvoker.invokeTestMethod(context, method);
+						return;
+					}
+
+					method.invoke(instance, context);
+				} catch (InvocationTargetException e) {
+					// Ensure that any GameTestException are propagated without wrapping
+					if (e.getTargetException() instanceof RuntimeException runtimeException) {
+						throw runtimeException;
+					}
+
+					throw new RuntimeException("Failed to invoke test method", e);
+				} catch (ReflectiveOperationException e) {
+					throw new RuntimeException("Failed to invoke test method", e);
+				}
+			};
+		}
+
+		TestData<RegistryEntry<TestEnvironmentDefinition>> testData(Registry<TestEnvironmentDefinition> testEnvironmentDefinitionRegistry) {
+			RegistryEntry<TestEnvironmentDefinition> testEnvironment = testEnvironmentDefinitionRegistry.getOrThrow(RegistryKey.of(RegistryKeys.TEST_ENVIRONMENT, Identifier.of(gameTest.environment())));
+
+			return new TestData<>(
+					testEnvironment,
+					Identifier.of(gameTest.structure()),
+					gameTest.maxTicks(),
+					gameTest.setupTicks(),
+					gameTest.required(),
+					gameTest.rotation(),
+					gameTest.manualOnly(),
+					gameTest.maxAttempts(),
+					gameTest.requiredSuccesses(),
+					gameTest.skyAccess()
+			);
+		}
+
+		TestInstance testInstance(Registry<TestEnvironmentDefinition> testEnvironmentDefinitionRegistry) {
+			return new FunctionTestInstance(
+					RegistryKey.of(RegistryKeys.TEST_FUNCTION, identifier()),
+					testData(testEnvironmentDefinitionRegistry)
+			);
+		}
+
+		private static String camelToSnake(String input) {
+			return input.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase(Locale.ROOT);
+		}
+	}
+```
+
+The @GameTest annotation has defaults for everything
+
+There is only one environment registered, the default "minecraft:default"
+data / minecraft / test_environment / default.json
+
+This applies no environments.
+
+See the [wiki](https://minecraft.wiki/w/Test_environment_definition) for details.
+
+```json
+{
+  "type": "minecraft:all_of",
+  "definitions": []
+}
+```
+
+Note the default structure - which is present in the fabric-gametest-api jar
+data\fabric-gametest-api-v1\gametest\structure\empty.snbt
+
+As already mentioned this is just 8x8x8 air.
+
+The @GameTest annotation is a function based version of 
+data / *namespacename* / [test_instance.json](https://minecraft.wiki/w/Test_instance_definition) as used by block based tests 
+
+```java
+public @interface GameTest {
+	/**
+	 * A namespaced ID of an entry within the {@link net.minecraft.registry.RegistryKeys#TEST_ENVIRONMENT} registry.
+	 */
+	String environment() default "minecraft:default";
+
+	/**
+	 * A namespaced ID pointing to a structure resource in the {@code modid/gametest/structure/} directory.
+	 *
+	 * <p>Defaults to an 8x8 structure with no blocks.
+	 */
+	String structure() default "fabric-gametest-api-v1:empty";
+
+	/**
+	 * The maximum number of ticks the test is allowed to run for.
+	 */
+	int maxTicks() default 20;
+
+	/**
+	 * The number of ticks to wait before starting the test after placing the structure.
+	 */
+	int setupTicks() default 0;
+
+	/**
+	 * Whether the test is required to pass for the test suite to pass.
+	 */
+	boolean required() default true;
+
+	/**
+	 * The rotation of the structure when placed.
+	 */
+	BlockRotation rotation() default BlockRotation.NONE;
+
+	/**
+	 * When set the test must be run manually.
+	 */
+	boolean manualOnly() default false;
+
+	/**
+	 * The number of times the test should be re attempted if it fails.
+	 */
+	int maxAttempts() default 1;
+
+	/**
+	 * The number of times the test should be successfully ran before it is considered a success.
+	 */
+	int requiredSuccesses() default 1;
+
+	/**
+	 * Whether the test should have sky access. When {@code false} the test will be enclosed by barrier blocks.
+	 */
+	boolean skyAccess() default false;
+}
+```
+
+This is how the json files in data / *namespacename* / test_environment
+get associated with code that runs setup and teardown, with access to the ServerWorld.
+If these are not sufficient you could define your own codec....
+
+```java
+public interface TestEnvironmentDefinition {
+	Codec<TestEnvironmentDefinition> CODEC = Registries.TEST_ENVIRONMENT_DEFINITION_TYPE.getCodec().dispatch(TestEnvironmentDefinition::getCodec, codec -> codec);
+	Codec<RegistryEntry<TestEnvironmentDefinition>> ENTRY_CODEC = RegistryElementCodec.of(RegistryKeys.TEST_ENVIRONMENT, CODEC);
+
+	static MapCodec<? extends TestEnvironmentDefinition> registerAndGetDefault(Registry<MapCodec<? extends TestEnvironmentDefinition>> registry) {
+		Registry.register(registry, "all_of", TestEnvironmentDefinition.AllOf.CODEC);
+		Registry.register(registry, "game_rules", TestEnvironmentDefinition.GameRules.CODEC);
+		Registry.register(registry, "time_of_day", TestEnvironmentDefinition.TimeOfDay.CODEC);
+		Registry.register(registry, "weather", TestEnvironmentDefinition.Weather.CODEC);
+		return Registry.register(registry, "function", TestEnvironmentDefinition.Function.CODEC);
+	}
+
+	void setup(ServerWorld world);
+
+	default void teardown(ServerWorld world) {
+	}
+
+	MapCodec<? extends TestEnvironmentDefinition> getCodec();
+
+    public record AllOf(List<RegistryEntry<TestEnvironmentDefinition>> definitions) implements TestEnvironmentDefinition {...}
+    public record Function(Optional<Identifier> setupFunction, Optional<Identifier> teardownFunction) implements TestEnvironmentDefinition {...}
+    public record GameRules(
+            List<TestEnvironmentDefinition.GameRules.RuleValue<Boolean, net.minecraft.world.GameRules.BooleanRule>> boolRules,
+            List<TestEnvironmentDefinition.GameRules.RuleValue<Integer, net.minecraft.world.GameRules.IntRule>> intRules
+    ) implements TestEnvironmentDefinition {...}
+    public record TimeOfDay(int time) implements TestEnvironmentDefinition {...}
+    public record Weather(TestEnvironmentDefinition.Weather.State weather) implements TestEnvironmentDefinition {...}
+
+```
+
+
+
+
+
+
 
 
