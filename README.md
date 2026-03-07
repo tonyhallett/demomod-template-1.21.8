@@ -837,7 +837,7 @@ public @interface GameTest {
 
 This is how the json files in data / *namespacename* / test_environment
 get associated with code that runs setup and teardown, with access to the ServerWorld.
-If these are not sufficient you could define your own codec....
+If these are not sufficient you could define your own [codec](https://wiki.fabricmc.net/tutorial:codec).
 
 ```java
 public interface TestEnvironmentDefinition {
