@@ -12,6 +12,8 @@ View inheritance hierarchy
 
 # Testing
 
+**Note** that internal class names are provided by mappings and will not agree with the most recent deobfuscated Minecraft code.
+
 You can test in game with block based testing, or you can test in code.
 
 Block testing and function testing ( code ) are built into the game.
@@ -36,6 +38,8 @@ If you use SNBT then the resources data directory structure is different.
 |-------|-------------------------------------------------------------------|
 | true  | resources/data/*namespace*/structure/*structurename*.nbt          |
 | false | resources/data/*namespace*/gametest/structure/*structurename*.nbt |
+
+Although these will be defined in src they will be read from build.
 
 It does not matter which resources directory is used for game tests.
 If you want your block based tests to be published then they need to go in main as gametest is not published.
@@ -91,7 +95,7 @@ In a block based test you **must place** a `TestBlock` with mode `START`.
 In the inventory the different modes have a different presentation.
 This will be triggered by the testing framework supplying 15 weak redstone power that can be used to perform change.
 
-For a function test, if you need to perform change then you need to decide when
+For a function test, TestBlock instances do nothing, if you need to perform change then you need to decide when.
 
 Your function test method will be invoked once, for code to run later you need to describe the tick or ticks when it needs to be run.
 
@@ -100,7 +104,10 @@ There are two ways of doing this
 At a specific tick
 
 `public void runAtTick(long tick, Runnable runnable) {`
+
 `public void waitAndRun(long ticks, Runnable runnable) {`
+
+**This is what BlockBasedTestInstance uses to check TestBlock for failure, success and logging**
 `public void runAtEveryTick(Runnable task) {` alias forEachRemainingTick
 
 Otherwise TimedTaskRunners.
@@ -117,8 +124,24 @@ A TimedTaskRunner has a list of TimedTask that will be run in order that they we
 TimedTaskRunner instances are run in the order they were created using `createTimedTaskRunner`;
 A TimedTask can have a duration ( addFinalTask / addFinalTaskWithDuration) or not ( addInstantFinalTask).
 Those tests with a duration will cause the test to fail if the Runnable ( @FunctionalInterface ) takes too many ticks
-These tasks can be run silently where any thrown GameTestException are swallowed, or reported causing the test to marked as failed.
-You can force the task to always fail with `TimedTaskRunner.createAndAddReported`
+Tasks can be run silently, where any thrown GameTestException are swallowed, or reported where a thrown GameTestException fails the test.
+Tasks are run silently on all ticks until the max ticks has been reached.  Tests stop ticking once the test has failed or completed successfully.
+You can force the task to not run silently with `TimedTaskRunner.createAndAddReported`
+
+This adds a task that is followed by a failing task.
+**This is poorly named in the mappings**, [issue](https://github.com/FabricMC/yarn/issues/4402), in the deobfuscated source this is called **failIf**
+Even failIf seems incorrect, a predicate parameter wrapped in a task would make more sense ?
+
+Perhaps the argument should never throw ?
+As is shown later the second task will run unless the first threw. 
+With multiple TimedTaskRunner another could complete whilst this one is silently.
+
+```java
+public void addTask(Runnable task) {
+    this.test.createTimedTaskRunner().createAndAdd(task).fail(() -> this.createError("test.error.fail"));
+}
+
+```
 
 final tasks
 
@@ -145,7 +168,9 @@ public void addFinalTaskWithDuration(int duration, Runnable runnable) {
 }
 ```
 
+
 How the test tick works - from GameTestState
+
 Here we can see that if there has been a failure there is no need to complete.
 **If there has been no exception the test will not have passed unless complete has been invoked.**
 
@@ -222,6 +247,7 @@ This demonstrates that timed tasks can run on each tick until they complete, or 
 ```
 
 From TimedTaskRunner ( silent or reporting ) - Once a timed task runs without throwing it will not run again.
+If a task throws further tasks will not run.
 ```java
 	private void runTasks(int tick) {
 		Iterator<TimedTask> iterator = this.tasks.iterator();
@@ -241,7 +267,7 @@ From TimedTaskRunner ( silent or reporting ) - Once a timed task runs without th
 	}
 ```
 
-If required there is also `public long getTick() {`
+If required TestContext also has `public long getTick() {`
 
 
 
@@ -556,7 +582,7 @@ public final class FabricGameTestModInitializer implements ModInitializer {
 
 ```
 
-There are two TestInstance derivations, BlockBasedTestInstance and Fabric's FunctionTestInstance
+There are two TestInstance derivations, BlockBasedTestInstance and FunctionTestInstance
 
 FunctionTestInstance start is simple in that it invokes the corresponding function that was registered in onInitialize
 ```

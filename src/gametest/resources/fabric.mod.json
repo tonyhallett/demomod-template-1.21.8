@@ -5,7 +5,10 @@
   "name": "Mod tests",
   "environment": "*",
   "entrypoints": {
-    "fabric-gametest": ["tonyhallett.demomod.ServerMinecartKillerTest", "tonyhallett.demomod.ServerHopperPipeTest"],
+    "fabric-gametest": [
+      "tonyhallett.demomod.ServerMinecartKillerTest",
+      "tonyhallett.demomod.ServerHopperPipeTest"
+    ],
     "fabric-client-gametest": ["tonyhallett.demomod.GameTest"]
   }
 }
