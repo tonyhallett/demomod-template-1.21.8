@@ -543,7 +543,7 @@ Fabric code tests
     
     I have used CustomTestMethodInvoker in [one of my tests](#RedstoneBlock-in-structure)
     
-4. Add parameters to `@GameTest` if the [defaults](# GameTest-defaults) are not sufficient, e.g if using a structure.
+4. Add parameters to `@GameTest` if the [defaults](#GameTest-defaults) are not sufficient, e.g if using a structure or if the maxTicks is not sufficient.
 
 ## Running tests
 
