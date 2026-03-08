@@ -1,7 +1,5 @@
 package tonyhallett.demomod;
 
-import java.lang.reflect.Method;
-
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.ChestBlockEntity;
 import net.minecraft.inventory.Inventory;
@@ -10,23 +8,12 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.test.TestContext;
 
-import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
-/*
-    It is not necessary to implement CustomTestMethodInvoker
-    but allows common set up code on the TestContext
-    can use reflection info on the Method to make decisions
- */
-public class ServerHopperPipeTest implements CustomTestMethodInvoker {
-
-    @Override
-    public void invokeTestMethod(TestContext context, Method method) throws ReflectiveOperationException {
-        method.invoke(this, context);
-    }
+public class ServerHopperPipeTest {
 
     @SuppressWarnings({"unused"})
     @GameTest(maxTicks = 30)
@@ -86,6 +73,7 @@ public class ServerHopperPipeTest implements CustomTestMethodInvoker {
             }
         };
     }
+
     @GameTest
     @SuppressWarnings({"unused"})
     public void hopperPipePushes(TestContext context){

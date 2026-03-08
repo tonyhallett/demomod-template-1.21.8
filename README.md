@@ -21,6 +21,10 @@ Function based ( server, no UI ) testing is hooked into by Fabric.
 Fabric also provides client based testing, this would be necessary if you wanted to test screens, 
 take screenshots or do pixel based comparison testing.
 
+The documentation for Fabric testing also mentions unit testing, but it is [Game Tests](https://docs.fabricmc.net/develop/automatic-testing#game-tests) that will be discussed here.
+At the top of the page is a dropdown for the Minecraft version being targeted.
+**Note that the documentation is incorrect with respect to the server test context type**.
+
 ## Block or function
 
 ### Blocks and entities
@@ -61,11 +65,14 @@ There are two methods of creating in game:
 
 Option 2 is probably the better option, **it does have caveats though**.
 
-
+Note that a Restone block in a structure does not work the same in a function test,
+[see](#RedstoneBlock-in-structure).
 
 ### Creating blocks and entities in code
 
-From the `TestContext`
+Fabric function tests have a `TestContext` parameter, for getting, setting and expecting the state of the server world.
+
+See [Setting up tests](#Setting-up-tests) for the requirements.
 
 Positions in these methods are **relative to the test structure**.
 
@@ -77,6 +84,8 @@ example usage
 `context.setBlockState(somePos,  Blocks.CHEST)`
 
 to get facing the correct direction - `setBlockFacing`
+
+
 
 Entities
 
@@ -269,8 +278,6 @@ If a task throws further tasks will not run.
 
 If required TestContext also has `public long getTick() {`
 
-
-
 "Change" methods, in addition to `setState`
 
 `removeBlock` and `putAndRemoveRedstoneBlock`
@@ -335,59 +342,7 @@ all positions in the test structure
 If these methods are not sufficient then there is `public ServerWorld getWorld()`
 e.g `public void setWeather(int clearDuration, int rainDuration, boolean raining, boolean thundering) {`
 
-## RedstoneBlock in structure does not work the same as placing in game
 
-If state change is triggered by RedstoneBlock then this base test class that finds and replaces can use.
-When the class containing @GameTest decorated methods implements CustomTestMethodInvoker the invokeTestMethod will be invoked.
-The context can be used prior to invoking the reflected Method.
-
-```java
-public class BaseServerTest implements CustomTestMethodInvoker {
-
-    @Override
-    public void invokeTestMethod(TestContext context, Method method) throws ReflectiveOperationException {
-        var testStructureBlockFinder = new TestStructureBlockFinder(context);
-        // could use other marker blocks instead such as a TestBlock
-        var redstoneBlockPositions = testStructureBlockFinder.findBlocksInTestStructure(Blocks.REDSTONE_BLOCK);
-        if (!redstoneBlockPositions.isEmpty()){
-            replaceSame(context, redstoneBlockPositions.getFirst(), Blocks.REDSTONE_BLOCK);
-        }
-
-        method.invoke(this, context);
-    }
-
-    @SuppressWarnings("SameParameterValue")
-    private static void replaceSame(TestContext context, BlockPos pos, Block block){
-        context.setBlockState(pos, Blocks.AIR.getDefaultState());
-        context.setBlockState(pos, block.getDefaultState());
-    }
-}
-```
-
-**Note** the requirement of creating a copy.
-
-```java
-public class TestStructureBlockFinder
-{
-    private final TestContext _context;
-
-    public TestStructureBlockFinder(TestContext context){
-        _context = context;
-    }
-
-    public List<BlockPos> findBlocksInTestStructure(Block block){
-        List<BlockPos> results = new ArrayList<>();
-        _context.forEachRelativePos(pos -> {
-            var state = _context.getBlockState(pos);
-            if (state.isOf(block)) {
-                results.add(pos.mutableCopy());
-            }
-        });
-
-        return results;
-    }
-}
-```
 
 ### Assertions and test success
 
@@ -494,19 +449,113 @@ for the test box itself
 `getTestBox`
 `getRotation` and `getDirection` is for how the test structure has been adjusted for the test.
 
+# Setting up tests
+
+Block based
+
+Fabric code tests
+
+1. Configure Fabric Loom - build.gradle
+
+    ```gradle
+    fabricApi {
+        configureTests {
+            createSourceSet = true
+            modId = "example-mod-test-${project.name}"
+            enableGameTests = true // Default is true
+            enableClientGameTests = true // Default is true
+            eula = true // By setting this to true, you agree to the Minecraft EULA.
+        }
+    }
+    ```
+2. Create directory structure, code, resources with a fabric.mod.json
+
+    src/gametest/resources/fabric.mod.json
+    
+    ```json
+    {
+      "schemaVersion": 1,
+      "id": "example-mod-test",
+      "version": "1.0.0",
+      "name": "Example mod",
+      "icon": "assets/example-mod/icon.png",
+      "environment": "*",
+      "entrypoints": {
+        "fabric-gametest": ["com.example.docs.ExampleModGameTest"],
+        "fabric-client-gametest": ["com.example.docs.ExampleModClientGameTest"]
+      }
+    }
+    ```
+    Note that this fabric.mod.json expects a server game test at src/gametest/java/com/example/docs/ExampleModGameTest, 
+    and a client game test at src/gametest/java/com/example/docs/ExampleModClientGameTest.
+
+3. Create test classes
+    
+    It is the presence of the @GameTest method annotation, perhaps on a base class, that signifies that a method is a test method.
+    See [here for details](#How-the-fabric-game-tests-work)
+    
+    This is sufficient, but you can also implement `CustomTestMethodInvoker` if you have a requirement to perform common setup or expectations.
+    
+    These minimal examples have to agree with the fabric-gametest entry point in the fabric.mod.json.
+    
+    The test signature is strict.
+    
+    ```java
+    package tonyhallett.demomod;
+    
+    import net.fabricmc.fabric.api.gametest.v1.GameTest;
+    import net.minecraft.test.TestContext;
+    
+    public class MinimalTest {
+        @GameTest
+        public void test(TestContext context){
+    
+        }
+    }
+    ```
+    
+    For CustomTestMethodInvoker, the test signature can be anything and have any access level.
+    You have access to the reflected test method that you would normally invoke,
+    or it could just provide data in an annotation.
+    
+    ```java
+    package tonyhallett.demomod;
+    
+    import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
+    import net.fabricmc.fabric.api.gametest.v1.GameTest;
+    import net.minecraft.test.TestContext;
+    
+    import java.lang.reflect.Method;
+    
+    public class MinimalInvokerTest implements CustomTestMethodInvoker {
+        @GameTest
+        public void test(TestContext context){
+    
+        }
+    
+        @Override
+        public void invokeTestMethod(TestContext context, Method method) throws ReflectiveOperationException {
+            // do something with TestContext, perhaps conditionally with the reflected method
+            method.invoke(this, context);
+        }
+    }
+    ```
+    
+    I have used CustomTestMethodInvoker in [one of my tests](#RedstoneBlock-in-structure)
+    
+4. Add parameters to `@GameTest` if the [defaults](# GameTest-defaults) are not sufficient, e.g if using a structure.
 
 ## Running tests
 
-todo
+Block based
 
-## The test command
+todo - mention that they will also be run with function based unless set as manual
 
-## How to run tests....
+Function based
 
-1. Block based
-2. Code
+## Debugging tests
 
-
+todo 
 
 ## The tests for this mod.
 
@@ -516,6 +565,61 @@ By having all 3 understanding is gained on the processes and quirks involved.
 ## Block based tests
 
 ## Code tests
+
+## RedstoneBlock in structure
+
+If when creating a structure, state change is triggered by the placement of RedstoneBlock this will not occur in a function test.
+
+This base test class facilitates such a scenario, by finding a `RedstoneBlock` and replacing with another one. 
+
+
+```java
+public class BaseServerTest implements CustomTestMethodInvoker {
+
+    @Override
+    public void invokeTestMethod(TestContext context, Method method) throws ReflectiveOperationException {
+        var testStructureBlockFinder = new TestStructureBlockFinder(context);
+        // could use other marker blocks instead such as a TestBlock
+        var redstoneBlockPositions = testStructureBlockFinder.findBlocksInTestStructure(Blocks.REDSTONE_BLOCK);
+        if (!redstoneBlockPositions.isEmpty()){
+            replaceSame(context, redstoneBlockPositions.getFirst(), Blocks.REDSTONE_BLOCK);
+        }
+
+        method.invoke(this, context);
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static void replaceSame(TestContext context, BlockPos pos, Block block){
+        context.setBlockState(pos, Blocks.AIR.getDefaultState());
+        context.setBlockState(pos, block.getDefaultState());
+    }
+}
+```
+
+**Note** the requirement of creating a copy.
+
+```java
+public class TestStructureBlockFinder
+{
+    private final TestContext _context;
+
+    public TestStructureBlockFinder(TestContext context){
+        _context = context;
+    }
+
+    public List<BlockPos> findBlocksInTestStructure(Block block){
+        List<BlockPos> results = new ArrayList<>();
+        _context.forEachRelativePos(pos -> {
+            var state = _context.getBlockState(pos);
+            if (state.isOf(block)) {
+                results.add(pos.mutableCopy());
+            }
+        });
+
+        return results;
+    }
+}
+```
 
 # How the fabric game tests work
 
@@ -800,6 +904,7 @@ As already mentioned this is just 8x8x8 air.
 The @GameTest annotation is a function based version of 
 data / *namespacename* / [test_instance.json](https://minecraft.wiki/w/Test_instance_definition) as used by block based tests 
 
+# GameTest defaults
 ```java
 public @interface GameTest {
 	/**
