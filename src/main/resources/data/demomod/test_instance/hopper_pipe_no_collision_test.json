@@ -1,8 +1,0 @@
-{
-	"type": "minecraft:block_based",
-	"environment": "minecraft:default",
-	"structure": "demomod:hopper_pipe_no_collision_test",
-	"max_ticks": 100,
-	"setup_ticks": 1,
-	"manual_only": true
-}

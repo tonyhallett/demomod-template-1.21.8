@@ -491,7 +491,7 @@ Fabric code tests
 
 3. Create test classes
     
-    It is the presence of the @GameTest method annotation, perhaps on a base class as I have done with my hopper pipe testing, that signifies that a method is a test method.
+    It is the presence of the @GameTest method annotation, perhaps on a base class as I have done with my [hopper pipe testing](#Hopper-pipe-tests), that signifies that a method is a test method.
     See [here for details](#How-the-fabric-game-tests-work)
     
     This is sufficient, but you can also implement `CustomTestMethodInvoker` if you have a requirement to perform common setup or expectations.
@@ -629,6 +629,7 @@ public class TestStructureBlockFinder
 
 This demonstrates using a structure.  Given that the structure was created with a redstone block for state change the 
 `StructureBlockReplacerTestMethodInvoker`, above, is used.
+Expecting the item is simpler than the block based usage of a repeating command block into the accept test block.
 
 ```java
 public class ServerMinecartKillerTest extends StructureBlockReplacerTestMethodInvoker {
@@ -639,7 +640,136 @@ public class ServerMinecartKillerTest extends StructureBlockReplacerTestMethodIn
     }
 }
 ```
+### Hopper pipe tests
 
+There are tests for `HopperPipeBlock` and for the regular `HopperBlock`.
+By testing the `HopperPipe` I can be sure that the behaviour that I assert has been removed does occur at that tick.
+
+All the tests are defined in `ServerHopperTestBase`, it's `isHopperPipe` field defines the block that is placed.
+
+Two of the test demonstrate the differences, `hopperPipeNoCollisionTest` and `hopperPipeNoExtractTest`.
+These have common setup and expectation, `hopperInventoryTest`, with the specific container expectation defined in the derived `expectExtracts`.
+
+Tick timing
+
+`hopperInventoryTest` runs once on a specified tick given that we start with an empty "hopper" and we assert that a hopper pipe will remain empty.
+
+`hopperPushes` runs on every tick using `addInstantFinalTask` and will complete if it does.
+
+
+```java
+public abstract class ServerHopperTestBase
+{
+    protected boolean isHopperPipe;
+
+    @SuppressWarnings({"unused"})
+    @net.fabricmc.fabric.api.gametest.v1.GameTest(maxTicks = 30)
+    public void hopperPipeNoCollisionTest(TestContext context){
+        hopperInventoryTest(
+                context,
+                true,
+                (spawnItem, hopperPos) -> spawnInHopperInputAreaShape(context, hopperPos, spawnItem));
+    }
+
+    private static void spawnInHopperInputAreaShape(TestContext context, BlockPos hopperPos, Item spawnItem){
+        /*
+            public interface Hopper extends Inventory {
+	            Box INPUT_AREA_SHAPE = (Box)Block.createColumnShape(16.0, 11.0, 32.0).getBoundingBoxes().get(0);
+        */
+        context.spawnItem(spawnItem, new Vec3d(hopperPos.getX() + 0.5,  hopperPos.getY() + 0.7, hopperPos.getZ() + 0.5));
+    }
+
+    @SuppressWarnings({"unused"})
+    @net.fabricmc.fabric.api.gametest.v1.GameTest(maxTicks = 30)
+    public void hopperPipeNoExtractTest(TestContext context){
+        hopperInventoryTest(
+                context,
+                false,
+                (spawnItem, hopperPos) -> context.spawnItem(spawnItem, hopperPos.up()));
+    }
+
+    private void hopperInventoryTest(TestContext context, boolean blockFromAbove, BiConsumer<Item, BlockPos> spawner){
+        var spawnItem = Items.MINECART;
+        var hopperPos = new BlockPos( 0,0,0);
+        if (blockFromAbove)
+        {
+            ServerHopperCreator.createHopperBlockedFromAbove(context, hopperPos, isHopperPipe);
+        }
+        else
+        {
+            ServerHopperCreator.createHopperBlock(context, hopperPos, isHopperPipe);
+        }
+        spawner.accept(spawnItem, hopperPos);
+
+        context.runAtTick(30, () -> {
+            expectExtracts(context, hopperPos, spawnItem);
+            context.complete();
+        });
+    }
+
+    protected abstract void expectExtracts(TestContext context, BlockPos hopperPos, Item spawnItem);
+
+    @GameTest
+    @SuppressWarnings({"unused"})
+    public void hopperPushes(TestContext context){
+        var topHopperItem = Items.MINECART;
+        var pushIntoPos = new BlockPos(0,0,0);
+        createHoppersIntoInventory(context, topHopperItem, pushIntoPos);
+        context.addInstantFinalTask(() ->
+                context.expectContainerWithSingle(pushIntoPos, topHopperItem)
+        );
+    }
+
+    private void createHoppersIntoInventory(TestContext context, Item topHopperItem, BlockPos pushIntoPos){
+        context.setBlockState(pushIntoPos, Blocks.CHEST);
+        ServerHopperCreator.createHopperBlock(context, pushIntoPos.up(),isHopperPipe);
+        ServerHopperCreator.createHopperBlockWithItem(context, pushIntoPos.up(2),false, topHopperItem);
+    }
+}
+```
+
+```java
+public class ServerHopperTest extends ServerHopperTestBase
+{
+    @Override
+    protected void expectExtracts(TestContext context, BlockPos hopperPos, Item spawnItem) {
+        context.expectContainerWithSingle(hopperPos, spawnItem);
+    }
+}
+
+public class ServerHopperPipeTest extends ServerHopperTestBase
+{
+    public ServerHopperPipeTest(){
+        this.isHopperPipe = true;
+    }
+
+    @Override
+    protected void expectExtracts(TestContext context, BlockPos hopperPos, Item spawnItem) {
+        context.expectEmptyContainer(hopperPos);
+    }
+}
+```
+
+```java
+public class ServerHopperCreator
+{
+    public static void createHopperBlock(TestContext context, BlockPos hopperPos, boolean isHopperPipe){
+        var hopperBlock = isHopperPipe ? ModBlocks.HOPPER_PIPE_BLOCK : Blocks.HOPPER;
+        context.setBlockState(hopperPos, hopperBlock);
+    }
+
+    public static void createHopperBlockWithItem(TestContext context, BlockPos hopperPos, boolean isHopperPipe, Item item){
+        createHopperBlock(context, hopperPos, isHopperPipe);
+        context.getBlockEntity(hopperPos, HopperBlockEntity.class).setStack(0, new ItemStack(item));
+    }
+
+    public static void createHopperBlockedFromAbove(TestContext context, BlockPos hopperPos, boolean isHopperPipe){
+        createHopperBlock(context, hopperPos, isHopperPipe);
+        context.setBlockState(hopperPos.up(), Blocks.CHEST);
+    }
+}
+
+```
 
 # How the fabric game tests work
 
