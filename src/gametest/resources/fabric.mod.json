@@ -7,6 +7,7 @@
   "entrypoints": {
     "fabric-gametest": [
       "tonyhallett.demomod.ServerMinecartKillerTest",
+      "tonyhallett.demomod.ServerHopperTest",
       "tonyhallett.demomod.ServerHopperPipeTest"
     ],
     "fabric-client-gametest": ["tonyhallett.demomod.GameTest"]

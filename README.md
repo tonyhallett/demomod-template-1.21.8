@@ -491,7 +491,7 @@ Fabric code tests
 
 3. Create test classes
     
-    It is the presence of the @GameTest method annotation, perhaps on a base class, that signifies that a method is a test method.
+    It is the presence of the @GameTest method annotation, perhaps on a base class as I have done with my hopper pipe testing, that signifies that a method is a test method.
     See [here for details](#How-the-fabric-game-tests-work)
     
     This is sufficient, but you can also implement `CustomTestMethodInvoker` if you have a requirement to perform common setup or expectations.
@@ -543,7 +543,7 @@ Fabric code tests
     
     I have used CustomTestMethodInvoker in [one of my tests](#RedstoneBlock-in-structure)
     
-4. Add parameters to `@GameTest` if the [defaults](#GameTest-defaults) are not sufficient, e.g if using a structure or if the maxTicks is not sufficient.
+4. Add parameters to `@GameTest` if the [defaults](#GameTest-defaults) are not sufficient, e.g. [if using a structure](#Minecart-killer-test) or if the maxTicks is not sufficient.
 
 ## Running tests
 
@@ -570,28 +570,32 @@ By having all 3 understanding is gained on the processes and quirks involved.
 
 If when creating a structure, state change is triggered by the placement of RedstoneBlock this will not occur in a function test.
 
-This base test class facilitates such a scenario, by finding a `RedstoneBlock` and replacing with another one. 
+This base `CustomTestMethodInvoker` facilitates such a scenario, by finding a `RedstoneBlock` and replacing with another one.
 
 
 ```java
-public class BaseServerTest implements CustomTestMethodInvoker {
+public abstract class StructureBlockReplacerTestMethodInvoker implements CustomTestMethodInvoker {
+    protected Block findBlock = Blocks.REDSTONE_BLOCK;
+    protected Block replaceBlock = Blocks.REDSTONE_BLOCK;
 
     @Override
     public void invokeTestMethod(TestContext context, Method method) throws ReflectiveOperationException {
         var testStructureBlockFinder = new TestStructureBlockFinder(context);
-        // could use other marker blocks instead such as a TestBlock
-        var redstoneBlockPositions = testStructureBlockFinder.findBlocksInTestStructure(Blocks.REDSTONE_BLOCK);
-        if (!redstoneBlockPositions.isEmpty()){
-            replaceSame(context, redstoneBlockPositions.getFirst(), Blocks.REDSTONE_BLOCK);
+        var foundBlockPositions = testStructureBlockFinder.findBlocksInTestStructure(findBlock);
+        if (!foundBlockPositions.isEmpty()){
+            replace(context, foundBlockPositions.getFirst());
         }
 
+        invoke(context, method);
+    }
+
+    protected void invoke(TestContext context, Method method) throws ReflectiveOperationException{
         method.invoke(this, context);
     }
 
-    @SuppressWarnings("SameParameterValue")
-    private static void replaceSame(TestContext context, BlockPos pos, Block block){
+    private void replace(TestContext context, BlockPos pos){
         context.setBlockState(pos, Blocks.AIR.getDefaultState());
-        context.setBlockState(pos, block.getDefaultState());
+        context.setBlockState(pos, replaceBlock.getDefaultState());
     }
 }
 ```
@@ -620,6 +624,22 @@ public class TestStructureBlockFinder
     }
 }
 ```
+
+### Minecart killer test
+
+This demonstrates using a structure.  Given that the structure was created with a redstone block for state change the 
+`StructureBlockReplacerTestMethodInvoker`, above, is used.
+
+```java
+public class ServerMinecartKillerTest extends StructureBlockReplacerTestMethodInvoker {
+    @SuppressWarnings({"unused"})
+    @GameTest(structure = "demomod:minecart_killer_function_test")
+    public void minecartKillerTest(TestContext context) {
+        context.addInstantFinalTask(() -> context.expectItem(Items.MINECART));
+    }
+}
+```
+
 
 # How the fabric game tests work
 
@@ -717,7 +737,11 @@ my gametest / resources / fabric.mod.json - note the entry points
 "name": "Mod tests",
 "environment": "*",
 "entrypoints": {
-  "fabric-gametest": ["tonyhallett.demomod.ServerMinecartKillerTest", "tonyhallett.demomod.ServerHopperPipeTest"],
+  "fabric-gametest": [
+    "tonyhallett.demomod.ServerMinecartKillerTest",
+    "tonyhallett.demomod.ServerHopperTest",
+    "tonyhallett.demomod.ServerHopperPipeTest"
+  ],
   "fabric-client-gametest": ["tonyhallett.demomod.GameTest"]
 }
 }
